@@ -79,5 +79,15 @@ $rcmail_config['ldapAliasSync'] = array(
         # Domain parts to ignore in attr_mail (optional)
         'attr_mail_ignore' => array(),
     ),
+
+    # Update identity
+    # Set to true if you want update the identity in the database
+    # if it's already exist (with the same email) (Default : False)
+    'update_identity' => false,
+
+    # Update only nonempty fields of the identity
+    # Set to true if you want to update only nonempty fields of the
+    # identity. (Default : True)
+    'update_only_nonempty_fields' => true
 );
 ?>
