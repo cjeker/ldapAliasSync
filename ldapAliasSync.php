@@ -275,6 +275,16 @@ class ldapAliasSync extends rcube_plugin {
                             foreach ( $db_identities as $db_identity ) {
                                 # email is our only comparison parameter
                                 if( $db_identity['email'] == $identity['email'] ) {
+                                    if (isset($this -> config['update_identity']) && $this -> config['update_identity']) {
+                                        if (!isset($this -> config['update_only_nonempty_fields']) || $this -> config['update_only_nonempty_fields']) {
+                                            foreach ($identity as $key => $value) {
+                                                if (empty($identity[$key])) unset($identity[$key]);
+                                            }
+                                        }
+                                        $this->rc_user->update_identity ( $db_identity['identity_id'], $identity );
+                                        $log = "Updated identity: ".$identity['email'];
+                                    }
+                                    write_log('ldapAliasSync', $log);
                                     $in_db = true;
                                     break;
                                 }
