@@ -234,7 +234,7 @@ class ldapAliasSync extends rcube_plugin {
                             if ( strstr($email, '@') ) {
                                 # Verify that domain part is not ignored
                                 $domain = explode('@', $email)[1];
-                                if ( in_array($domain, $this->attr_mail_ignore) ) continue;
+                                if ( is_array($this->attr_mail_ignore) and in_array($domain, $this->attr_mail_ignore) ) continue;
 
                                 if ( !$name )         $name         = '';
                                 if ( !$organisation ) $organisation = '';
