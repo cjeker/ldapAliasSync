@@ -61,6 +61,10 @@ $rcmail_config['ldapAliasSync'] = array(
         # If no domain part is returned and no 'find_domain' is given, the identity will not be fetched!
         'attr_mail'  => 'uid',
         
+        # LDAP additional mail address attribute (optional)
+        # If no domain part is returned and no 'find_domain' is given, the identity will not be fetched!
+        'attr_mail_extra'  => '',
+
         # LDAP name attribute (optional)
         'attr_name'  => 'cn',
         

@@ -59,6 +59,7 @@ class ldapAliasSync extends rcube_plugin {
             $this->base_dn      = $this->ldap['base_dn'];
             $this->filter       = $this->ldap['filter'];
             $this->attr_mail    = $this->ldap['attr_mail'];
+            $this->attr_extra   = $this->ldap['attr_mail_extra'];
             $this->attr_name    = $this->ldap['attr_name'];
             $this->attr_org     = $this->ldap['attr_org'];
             $this->attr_reply   = $this->ldap['attr_reply'];
@@ -70,14 +71,15 @@ class ldapAliasSync extends rcube_plugin {
 
             # Convert all attribute names to lower case
             $this->attr_mail  = strtolower($this->attr_mail);
+            $this->attr_extra = strtolower($this->attr_extra);
             $this->attr_name  = strtolower($this->attr_name);
             $this->attr_org   = strtolower($this->attr_org);
             $this->attr_reply = strtolower($this->attr_reply);
             $this->attr_bcc   = strtolower($this->attr_bcc);
             $this->attr_sig   = strtolower($this->attr_sig);
 
-            $this->fields = array($this->attr_mail, $this->attr_name, $this->attr_org, $this->attr_reply,
-                $this->attr_bcc, $this->attr_sig);
+            $this->fields = array($this->attr_mail, $this->attr_extra, $this->attr_name, $this->attr_org,
+                $this->attr_reply, $this->attr_bcc, $this->attr_sig);
 
             # Load mail configs
             $this->search_domain  = $this->mail['search_domain'];
@@ -189,11 +191,12 @@ class ldapAliasSync extends rcube_plugin {
                     write_log('ldapAliasSync', $log);
 
                     $identities = array();
+                    $default_email = false;
 
                     # Collect the identity information
                     for($i=0; $i<$info['count']; $i++) {
                         write_log('ldapAliasSync', $i);
-                        $email = null;
+                        $emails = array();
                         $name = null;
                         $organization = null;
                         $reply = null;
@@ -201,8 +204,6 @@ class ldapAliasSync extends rcube_plugin {
                         $signature = null;
 
                         $ldapID = $info["$i"];
-                        $ldap_temp = $ldapID[$this->attr_mail];
-                        $email = $ldap_temp[0];
                         if ( $this->attr_name ) {
                             $ldap_temp = $ldapID[$this->attr_name];
                             $name = $ldap_temp[0];
@@ -224,9 +225,20 @@ class ldapAliasSync extends rcube_plugin {
                             $signature = $ldap_temp[0];
                         }
 
+			# collect all possible email addresses from mail and mail_extra
                         $ldap_temp = $ldapID[$this->attr_mail];
+                        if ($ldap_temp['count'] == 1) {
+                            $default_email = $ldap_temp[0];
+                        }
                         for($mi = 0; $mi < $ldap_temp['count']; $mi++) {
-                            $email = $ldap_temp[$mi];
+                            array_push($emails, $ldap_temp[$mi]);
+                        }
+                        $ldap_temp = $ldapID[$this->attr_extra];
+                        for($mi = 0; $mi < $ldap_temp['count']; $mi++) {
+                            array_push($emails, $ldap_temp[$mi]);
+                        }
+
+                        foreach ($emails as $email) {
                             # If we only found the local part and have a find domain, append it
                             if ( $email && !strstr($email, '@') && $this->find_domain ) $email = "$email@$this->find_domain";
 
@@ -269,6 +281,7 @@ class ldapAliasSync extends rcube_plugin {
 
                     if ( count($identities) > 0 && $db_identities = $this->rc_user->list_identities() ) {
                         # Check which identities not yet contained in the database
+                        $default_id = false;
                         foreach ( $identities as $identity ) {
                             $in_db = false;
 
@@ -313,6 +326,19 @@ class ldapAliasSync extends rcube_plugin {
                                 $this->rc_user->delete_identity($db_identity['identity_id']);
                                 $log = sprintf("Removed identity: ", $del_id);
                                 write_log('ldapAliasSync', $log);
+                            }
+                        }
+                        # if there is a default email make sure that on is the default identity
+                        # need to refetch the db identities to get the ID of new inserted identities
+                        if ( $default_email && $db_identities = $this->rc_user->list_identities() ) {
+                            foreach ( $db_identities as $db_identity ) {
+                                # email is our only comparison parameter
+                                if( $db_identity['email'] == $default_email ) {
+                                    $this->rc_user->update_identity ( $db_identity['identity_id'], array( 'standard' => '1'));
+                                    $this->rc_user->set_default($db_identity['identity_id']);
+                                    $log = "Default identity: ".$default_email;
+                                    write_log('ldapAliasSync', $log);
+                                }
                             }
                         }
                     }
